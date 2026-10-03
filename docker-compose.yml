@@ -1,9 +1,10 @@
 # =============================================================================
-#  Wayground Console + neko
-#  Chạy:  docker compose up -d   ->  mở http://localhost:3000
+#  Wayground Console + neko thật (Neko được Docker Compose tải/chạy tự động)
+#  Chạy:  npm start   hoặc   docker compose up --build
+#  Mở:    http://localhost:3000
 #
-#  Lần đầu nên chạy ở chế độ DEMO (không cần neko) để xem cơ chế:
-#     docker compose up console      # MODE mặc định là auto -> demo
+#  VIEWER mặc định là embed: khung xem tải giao diện gốc của Neko qua proxy.
+#  DEMO chỉ bật tường minh bằng `npm run demo` hoặc MODE=demo khi chạy Node riêng.
 # =============================================================================
 services:
   # ---------------------------------------------------------------------------
@@ -15,15 +16,15 @@ services:
     restart: unless-stopped
     shm_size: '2gb'
     ports:
-      - '8080:8080' # giao diện neko (để debug trực tiếp, có thể bỏ)
-      - '52000-52100:52000-52100/udp' # WebRTC (bắt buộc cho khung xem)
+      # Media WebRTC đi thẳng từ trình duyệt tới Neko; giao diện HTTP/WS được
+      # phục vụ cùng origin qua console nên không cần mở cổng 8080 của Neko.
+      - '${NEKO_BIND_ADDRESS:-127.0.0.1}:52000-52100:52000-52100/udp'
     environment:
       # --- WebRTC ---
       NEKO_WEBRTC_EPR: 52000-52100
       # Đổi thành IP mà trình duyệt của bạn nhìn thấy (LAN IP hoặc public IP).
-      # Nếu neko và wayground-console chạy cùng máy và bạn xem qua localhost,
-      # có thể để trống.
-      NEKO_WEBRTC_NAT1TO1: ${NEKO_PUBLIC_IP:-}
+      # 127.0.0.1 phù hợp khi chỉ mở trên chính máy này.
+      NEKO_WEBRTC_NAT1TO1: ${NEKO_PUBLIC_IP:-127.0.0.1}
       NEKO_WEBRTC_ICETRICKLE: 'true'
 
       # --- màn hình ---
@@ -63,7 +64,9 @@ services:
     container_name: wayground-console
     restart: unless-stopped
     ports:
-      - '3000:8080'
+      # Chỉ mở trên máy local theo mặc định; đặt APP_BIND_ADDRESS=0.0.0.0
+      # khi cần truy cập từ máy khác (nhớ đặt APP_PASSWORD).
+      - '${APP_BIND_ADDRESS:-127.0.0.1}:3000:8080'
     environment:
       PORT: '8080'
       HOST: 0.0.0.0
@@ -72,7 +75,7 @@ services:
       APP_PASSWORD: ${APP_PASSWORD:-}
 
       MODE: live
-      VIEWER: ${VIEWER:-webrtc} # webrtc | embed | novnc
+      VIEWER: ${VIEWER:-embed} # giao diện Neko thật; có thể chọn webrtc | novnc
       NEKO_URL: http://neko:8080
       NEKO_API_TOKEN: wayground-api-token
 
@@ -103,4 +106,5 @@ services:
       # Bỏ dòng dưới nếu bạn không dùng STRATEGY_DOCKER.
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - neko
+      neko:
+        condition: service_healthy

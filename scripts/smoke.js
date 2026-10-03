@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * scripts/smoke.js - Kiểm tra nhanh một server đang chạy (mặc định localhost:8080).
+ * scripts/smoke.js - Kiểm tra nhanh stack Compose (mặc định localhost:3000).
  *
- *   node scripts/smoke.js                       # kiểm tra http://127.0.0.1:8080
- *   node scripts/smoke.js http://host:8080      # kiểm tra địa chỉ khác
+ *   node scripts/smoke.js                       # kiểm tra http://127.0.0.1:3000
+ *   node scripts/smoke.js http://host:3000      # kiểm tra app chạy riêng
  *   APP_PASSWORD=abc node scripts/smoke.js      # kèm mật khẩu bảng điều khiển
  *
  * Kịch bản: health -> state -> pause (chờ leo bậc) -> resume -> in báo cáo.
  */
-const base = (process.argv[2] ?? process.env.BASE_URL ?? 'http://127.0.0.1:8080').replace(/\/+$/, '')
+const base = (process.argv[2] ?? process.env.BASE_URL ?? 'http://127.0.0.1:3000').replace(/\/+$/, '')
 const password = process.env.APP_PASSWORD ?? ''
 
 const headers = { 'content-type': 'application/json', 'X-Wayground': '1' }

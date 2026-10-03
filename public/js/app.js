@@ -17,6 +17,7 @@ const els = {
   body: document.body,
   badgeMode: $('#badge-mode'),
   badgeViewer: $('#badge-viewer'),
+  softDesc: $('#soft-desc'),
   badgeConn: $('#badge-conn'),
   connText: $('#conn-text'),
   statePill: $('#state-pill'),
@@ -115,9 +116,19 @@ async function init() {
   app.state = app.config.state
   app.lastSettings = app.state.settings
 
+  document.body.dataset.mode = app.config.mode
+  document.body.dataset.viewer = app.config.viewer
   els.badgeMode.textContent = app.config.mode === 'demo' ? 'DEMO' : 'LIVE'
   els.badgeMode.title = app.config.mode === 'demo' ? 'Chạy không cần neko (neko giả lập nội bộ)' : 'Kết nối neko thật'
-  els.badgeViewer.textContent = app.config.viewer.toUpperCase()
+  els.badgeViewer.textContent = app.config.viewer === 'embed' ? 'NEKO' : app.config.viewer.toUpperCase()
+  els.badgeViewer.title = app.config.viewer === 'embed' ? 'Giao diện chính thức của Neko' : `Khung xem: ${app.config.viewer}`
+  const softDescriptions = {
+    demo: 'đóng băng mô phỏng canvas trong trình duyệt',
+    webrtc: 'dừng video và tắt track nhận ở trình duyệt',
+    embed: 'phủ lớp pause; Neko dừng gửi frame ở bậc kế tiếp',
+    novnc: 'phủ lớp pause; việc dừng thật do Neko ở bậc kế tiếp',
+  }
+  els.softDesc.textContent = softDescriptions[app.config.viewer] ?? softDescriptions.embed
 
   syncAutoUi()
   renderSettings(app.state.settings)
@@ -168,19 +179,26 @@ async function mountViewer(mode) {
 
   app.viewer.attachInput?.(els.screenInput)
 
-  if (app.viewer.start) {
-    app.viewer.start().catch((error) => {
-      showNotice('Không kết nối được neko', error.message, true)
-    })
-  } else {
-    hideNotice()
-  }
+  startViewer()
 
   renderViewerStatus(app.viewer.getStatus?.() ?? { connected: true, message: `${mode} · sẵn sàng` })
 
   els.noticeRetry.onclick = () => {
     hideNotice()
-    app.viewer.start?.().catch((error) => showNotice('Vẫn không kết nối được', error.message, true))
+    startViewer(true)
+  }
+}
+
+function startViewer(isRetry = false) {
+  try {
+    const result = app.viewer?.start?.()
+    if (result && typeof result.catch === 'function') {
+      result.catch((error) => showNotice(isRetry ? 'Vẫn không kết nối được' : 'Không kết nối được neko', error.message, true))
+    } else {
+      hideNotice()
+    }
+  } catch (error) {
+    showNotice(isRetry ? 'Vẫn không kết nối được' : 'Không kết nối được neko', error.message, true)
   }
 }
 
