@@ -1,0 +1,34 @@
+{
+  "name": "wayground-neko-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wayground Console - bảng điều khiển Neko: tự động TẠM DỪNG (pause) máy ảo khi chuột rời khung xem và TIẾP TỤC (resume) khi chuột quay trở lại. Node.js điều khiển neko qua REST API + WebRTC + proxy WebSocket.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js",
+    "smoke": "node scripts/smoke.js",
+    "lint": "eslint src public/js test scripts"
+  },
+  "keywords": [
+    "neko",
+    "m1k1o",
+    "webrtc",
+    "novnc",
+    "pause",
+    "virtual-browser"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.12.0",
+    "playwright": "^1.63.0"
+  }
+}

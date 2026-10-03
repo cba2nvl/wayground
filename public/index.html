@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wayground Console · Điều khiển Neko theo con trỏ chuột</title>
+    <meta name="description" content="Tự động tạm dừng (pause) máy ảo Neko khi chuột rời khung xem và tiếp tục khi chuột quay trở lại." />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body data-mode="demo" data-viewer="demo" data-state="running">
+    <!-- ============================ THANH TRÊN ============================ -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4l3.5 3.2M20 4l-3.5 3.2" />
+            <path d="M12 20c3.9 0 7-2.7 7-6.2 0-1.9-1-3.5-2.5-4.6C15.2 8.2 13.8 8 12 8s-3.2.2-4.5 1.2C6 10.3 5 11.9 5 13.8 5 17.3 8.1 20 12 20z" />
+            <path d="M9.5 14h.01M14.5 14h.01" />
+          </svg>
+        </div>
+        <div class="brand__text">
+          <b>Wayground<span>.Console</span></b>
+          <small>Neko · pause theo con trỏ chuột</small>
+        </div>
+      </div>
+
+      <div class="badges">
+        <span class="badge" id="badge-mode" title="Chế độ chạy">DEMO</span>
+        <span class="badge" id="badge-viewer" title="Kiểu khung xem">DEMO</span>
+        <span class="badge badge--conn" id="badge-conn" title="Kết nối tới neko">
+          <i class="dot"></i><span id="conn-text">đang kiểm tra…</span>
+        </span>
+      </div>
+
+      <div class="state-pill" id="state-pill" data-state="running">
+        <span class="state-pill__ring"></span>
+        <span class="state-pill__text" id="state-text">ĐANG CHẠY</span>
+        <span class="state-pill__timer" id="state-timer"></span>
+      </div>
+
+      <div class="top-actions">
+        <button class="chip" id="btn-auto" title="Bật/tắt tự động pause khi chuột rời khung">
+          <i class="chip__dot"></i><span>Auto-pause</span><b id="auto-value">BẬT</b>
+        </button>
+        <button class="chip chip--ghost" id="btn-tab-help" title="Trợ giúp & phím tắt">?</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- ============================ KHUNG XEM ============================ -->
+      <section class="stage">
+        <div class="stage__head">
+          <h1 class="stage__title">
+            Khung máy ảo
+            <span class="stage__sub" id="stage-sub">chuột rời khung → pause · chuột quay lại → resume</span>
+          </h1>
+          <div class="stage__hud" id="stage-hud">
+            <span class="hud" id="hud-res" title="Độ phân giải">—</span>
+            <span class="hud" id="hud-fps" title="Khung hình/giây">—</span>
+            <span class="hud" id="hud-latency" title="Độ trễ">—</span>
+            <span class="hud" id="hud-control" title="Quyền điều khiển">—</span>
+            <span class="hud hud--bytes" id="hud-bytes" title="Dữ liệu nhận được">—</span>
+          </div>
+        </div>
+
+        <div class="screen" id="screen-frame" data-state="running" data-pointer="unknown">
+          <div class="screen__viewer" id="viewer-root"></div>
+
+          <!-- lớp bắt sự kiện chuột/bàn phím (được viewer gắn thêm khi cần) -->
+          <div class="screen__input" id="screen-input" aria-hidden="true"></div>
+
+          <!-- lớp phủ khi tạm dừng -->
+          <div class="screen__paused" id="paused-overlay" hidden>
+            <div class="paused-card">
+              <div class="paused-card__icon">
+                <i></i><i></i>
+              </div>
+              <div class="paused-card__body">
+                <strong id="paused-title">ĐÃ TẠM DỪNG</strong>
+                <span id="paused-reason">chuột đã rời khỏi khung xem</span>
+                <div class="paused-card__meta">
+                  <span class="tag" id="paused-level">mềm</span>
+                  <span class="tag tag--ghost" id="paused-next">—</span>
+                </div>
+                <div class="paused-card__hint">
+                  <kbd>chuột</kbd> quay lại khung để tiếp tục · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd>
+                </div>
+              </div>
+              <div class="paused-card__ring">
+                <svg viewBox="0 0 44 44"><circle class="ring-bg" cx="22" cy="22" r="19"></circle><circle class="ring-fg" id="paused-ring" cx="22" cy="22" r="19"></circle></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- lớp phủ khi chưa kết nối được -->
+          <div class="screen__notice" id="screen-notice" hidden>
+            <strong id="notice-title">Đang kết nối tới neko…</strong>
+            <span id="notice-text"></span>
+            <button class="btn btn--sm" id="notice-retry" hidden>Thử lại</button>
+          </div>
+
+          <span class="screen__corner screen__corner--tl"></span>
+          <span class="screen__corner screen__corner--tr"></span>
+          <span class="screen__corner screen__corner--bl"></span>
+          <span class="screen__corner screen__corner--br"></span>
+        </div>
+
+        <div class="stage__foot">
+          <button class="btn btn--pause" id="btn-pause">
+            <span class="btn__ico">⏸</span> Tạm dừng
+          </button>
+          <button class="btn btn--resume" id="btn-resume">
+            <span class="btn__ico">▶</span> Tiếp tục
+          </button>
+          <label class="field field--inline" title="Chờ bao lâu sau khi chuột rời khung mới pause (chống nhấp nháy ở mép khung)">
+            <span>Trễ khi rời khung</span>
+            <input type="range" id="inp-debounce" min="0" max="3000" step="50" value="600" />
+            <output id="out-debounce">600ms</output>
+          </label>
+          <span class="hint">
+            <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>P</kbd> pause ·
+            <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>R</kbd> resume
+          </span>
+        </div>
+      </section>
+
+      <!-- ============================ BẢNG BÊN ============================ -->
+      <aside class="panel">
+        <nav class="tabs" id="tabs">
+          <button class="tab is-active" data-tab="status">Trạng thái</button>
+          <button class="tab" data-tab="log">Nhật ký</button>
+          <button class="tab" data-tab="stats">Số liệu</button>
+          <button class="tab" data-tab="neko">Neko API</button>
+          <button class="tab" data-tab="settings">Cài đặt</button>
+        </nav>
+
+        <!-- ---------------- trạng thái ---------------- -->
+        <section class="tabpanel is-active" data-panel="status">
+          <div class="card">
+            <div class="card__head">
+              <h2>Bậc thang tiết kiệm tài nguyên</h2>
+              <span class="muted" id="ladder-note">mỗi bậc sâu hơn tiết kiệm nhiều CPU hơn</span>
+            </div>
+            <ol class="ladder" id="ladder">
+              <li data-level="soft">
+                <span class="ladder__dot"></span>
+                <div class="ladder__body">
+                  <b>Bậc mềm · trình duyệt</b>
+                  <small>dừng <code>&lt;video&gt;</code>, tắt track nhận, ngắt nhập liệu</small>
+                  <em class="ladder__when" data-when>chạy ngay</em>
+                </div>
+                <span class="ladder__badge">0 ms</span>
+              </li>
+              <li data-level="hard">
+                <span class="ladder__dot"></span>
+                <div class="ladder__body">
+                  <b>Bậc neko · private_mode</b>
+                  <small><code>POST /api/room/settings {"private_mode":true}</code> → neko ngừng encode/gửi frame</small>
+                  <em class="ladder__when" data-when>sau 3s</em>
+                </div>
+                <span class="ladder__badge" id="badge-hard">3s</span>
+              </li>
+              <li data-level="deep">
+                <span class="ladder__dot"></span>
+                <div class="ladder__body">
+                  <b>Bậc sâu · docker pause</b>
+                  <small>đóng băng cgroup container neko → CPU ≈ 0</small>
+                  <em class="ladder__when" data-when>sau 60s</em>
+                </div>
+                <span class="ladder__badge" id="badge-deep">60s</span>
+              </li>
+            </ol>
+          </div>
+
+          <div class="card">
+            <div class="card__head"><h2>Lý do pause hiện tại</h2></div>
+            <ul class="reasons" id="reasons"><li class="muted">không có — máy ảo đang chạy</li></ul>
+            <div class="card__foot">
+              <button class="btn btn--ghost btn--sm" id="btn-sim-out">Mô phỏng rời chuột</button>
+              <button class="btn btn--ghost btn--sm" id="btn-sim-in">Mô phỏng quay lại</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__head"><h2>Trình duyệt đang theo dõi</h2><span class="muted" id="clients-count">0</span></div>
+            <ul class="clients" id="clients"><li class="muted">chưa có client</li></ul>
+          </div>
+
+          <div class="card card--warn" id="warn-card" hidden>
+            <div class="card__head"><h2>Cảnh báo</h2></div>
+            <ul class="warns" id="warns"></ul>
+          </div>
+        </section>
+
+        <!-- ---------------- nhật ký ---------------- -->
+        <section class="tabpanel" data-panel="log">
+          <div class="log" id="log"></div>
+          <div class="card__foot">
+            <label class="check"><input type="checkbox" id="log-autoscroll" checked /> tự cuộn</label>
+            <button class="btn btn--ghost btn--sm" id="btn-log-clear">xoá nhật ký</button>
+          </div>
+        </section>
+
+        <!-- ---------------- số liệu ---------------- -->
+        <section class="tabpanel" data-panel="stats">
+          <div class="metrics" id="metrics"></div>
+          <div class="card">
+            <div class="card__head"><h2>Thời gian theo bậc</h2></div>
+            <div class="bars" id="bars"></div>
+          </div>
+          <div class="card">
+            <div class="card__head"><h2>Hành động gần đây</h2></div>
+            <ul class="actions" id="actions"><li class="muted">chưa có hành động</li></ul>
+          </div>
+        </section>
+
+        <!-- ---------------- neko api ---------------- -->
+        <section class="tabpanel" data-panel="neko">
+          <div class="card" id="neko-card">
+            <div class="card__head"><h2>Thông tin neko</h2></div>
+            <dl class="kv" id="neko-info"></dl>
+          </div>
+          <div class="card" id="neko-calls-card" hidden>
+            <div class="card__head">
+              <h2>Lời gọi API đã gửi (neko giả lập)</h2>
+              <span class="muted">đúng như khi chạy thật</span>
+            </div>
+            <ul class="calls" id="neko-calls"></ul>
+          </div>
+          <div class="card">
+            <div class="card__head"><h2>curl nhanh</h2></div>
+            <pre class="code" id="curl-hint"></pre>
+          </div>
+        </section>
+
+        <!-- ---------------- cài đặt ---------------- -->
+        <section class="tabpanel" data-panel="settings">
+          <div class="card">
+            <div class="card__head"><h2>Cơ chế pause</h2><span class="muted">áp dụng ngay, không cần khởi động lại</span></div>
+            <div class="settings" id="settings"></div>
+            <div class="card__foot">
+              <button class="btn btn--ghost btn--sm" id="btn-settings-reset">Khôi phục mặc định</button>
+              <span class="muted" id="settings-note"></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card__head"><h2>Chiến lược được bật</h2></div>
+            <div class="toggles" id="strategy-toggles"></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="statusbar">
+      <span id="status-left">sẵn sàng</span>
+      <span class="statusbar__right">
+        <span id="status-uptime">—</span>
+        <span class="sep">·</span>
+        <span id="status-ws">ws: —</span>
+        <span class="sep">·</span>
+        <span id="status-clock">—</span>
+      </span>
+    </footer>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <dialog class="modal" id="help-modal">
+      <h2>Cách hoạt động</h2>
+      <p>
+        Khi con trỏ chuột <b>rời khỏi khung máy ảo</b>, trình duyệt báo lên node.js; node.js giữ trạng thái pause
+        (nguồn chân lý) rồi lần lượt áp dụng 3 bậc:
+      </p>
+      <ol>
+        <li><b>Mềm:</b> trình duyệt dừng <code>&lt;video&gt;</code> và tắt track nhận → gần như không tốn CPU giải mã.</li>
+        <li><b>Neko:</b> node.js gọi <code>POST /api/room/settings</code> với <code>private_mode=true</code> → neko đóng subscription, không encode/gửi frame nữa.</li>
+        <li><b>Sâu:</b> nếu bật, node.js chạy <code>docker pause &lt;container&gt;</code> → đóng băng cả máy ảo (CPU ≈ 0).</li>
+      </ol>
+      <p>Khi chuột <b>quay lại khung</b>, mọi bậc được gỡ theo thứ tự ngược lại và máy ảo tiếp tục ngay tại chỗ.</p>
+      <p class="muted">
+        An toàn: tự resume khi hết hạn đóng băng, khi tab đóng, khi mất nhịp tim hoặc quá thời gian pause tối đa.
+      </p>
+      <h3>Phím tắt</h3>
+      <ul>
+        <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> — tạm dừng</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> — tiếp tục</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> — bật/tắt auto-pause</li>
+      </ul>
+      <button class="btn" id="help-close">Đóng</button>
+    </dialog>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

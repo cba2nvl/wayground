@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Đăng nhập · Wayground Console</title>
+    <meta name="color-scheme" content="dark" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body class="login-body">
+    <form class="login" id="login-form">
+      <div class="login__mark">🐱</div>
+      <h1>Wayground Console</h1>
+      <p class="muted">Nhập mật khẩu điều khiển (APP_PASSWORD) để tiếp tục.</p>
+      <input type="password" id="password" placeholder="Mật khẩu" autocomplete="current-password" autofocus required />
+      <button class="btn" type="submit">Đăng nhập</button>
+      <span class="login__error" id="error" hidden></span>
+    </form>
+
+    <script type="module">
+      const form = document.getElementById('login-form')
+      const error = document.getElementById('error')
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault()
+        error.hidden = true
+        const password = document.getElementById('password').value
+
+        try {
+          const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'X-Wayground': '1' },
+            body: JSON.stringify({ password }),
+          })
+          if (response.ok) {
+            window.location.assign('/')
+            return
+          }
+          error.textContent = 'Mật khẩu không đúng.'
+          error.hidden = false
+        } catch (err) {
+          error.textContent = `Lỗi: ${err.message}`
+          error.hidden = false
+        }
+      })
+    </script>
+  </body>
+</html>
