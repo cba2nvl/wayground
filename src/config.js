@@ -1,8 +1,8 @@
 /**
  * config.js - Đọc & chuẩn hoá toàn bộ cấu hình từ biến môi trường (.env).
  *
- * Triết lý: mọi thứ đều có mặc định hợp lý để `npm start` là chạy được ngay
- * ở chế độ DEMO (không cần neko, không cần Docker).
+ * `npm start` chạy Docker Compose với Neko thật; chạy riêng Node.js cũng mặc định
+ * kết nối tới Neko local. Chế độ DEMO chỉ được bật bằng MODE=demo (hoặc auto + URL trống).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -91,15 +91,15 @@ export const CONTAINER_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const nekoUrl = trimTrailingSlash(str(process.env.NEKO_URL))
-const requestedMode = str(process.env.MODE, 'auto').toLowerCase()
+const nekoUrl = trimTrailingSlash(str(process.env.NEKO_URL, 'http://127.0.0.1:8080'))
+const requestedMode = str(process.env.MODE, 'live').toLowerCase()
 const mode = requestedMode === 'auto' || requestedMode === '' ? (nekoUrl ? 'live' : 'demo') : requestedMode
 
 const requestedViewer = str(process.env.VIEWER, 'auto').toLowerCase()
 
 export const config = {
   // ---- web server
-  port: parseIntSafe(process.env.PORT, 8080, { min: 0, max: 65535 }),
+  port: parseIntSafe(process.env.PORT, 3000, { min: 0, max: 65535 }),
   host: str(process.env.HOST, '0.0.0.0'),
   logLevel: str(process.env.LOG_LEVEL, 'info').toLowerCase(),
   appPassword: str(process.env.APP_PASSWORD),
@@ -164,7 +164,9 @@ export const config = {
 /** Chế độ viewer thực tế sau khi phân giải 'auto'. */
 export function resolveViewerMode() {
   if (config.requestedViewer && config.requestedViewer !== 'auto') return config.requestedViewer
-  return config.mode === 'demo' ? 'demo' : 'webrtc'
+  // Ưu tiên giao diện chính chủ của Neko trong chế độ live; WebRTC mini vẫn có
+  // thể bật tường minh bằng VIEWER=webrtc.
+  return config.mode === 'demo' ? 'demo' : 'embed'
 }
 
 /** Cấu hình an toàn để gửi xuống trình duyệt (không chứa mật khẩu). */

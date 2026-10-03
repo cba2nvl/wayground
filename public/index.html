@@ -9,7 +9,7 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%90%B1%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
-  <body data-mode="demo" data-viewer="demo" data-state="running">
+  <body data-mode="live" data-viewer="embed" data-state="running">
     <!-- ============================ THANH TRÊN ============================ -->
     <header class="topbar">
       <div class="brand">
@@ -27,8 +27,8 @@
       </div>
 
       <div class="badges">
-        <span class="badge" id="badge-mode" title="Chế độ chạy">DEMO</span>
-        <span class="badge" id="badge-viewer" title="Kiểu khung xem">DEMO</span>
+        <span class="badge" id="badge-mode" title="Chế độ chạy">LIVE</span>
+        <span class="badge" id="badge-viewer" title="Giao diện chính thức của Neko">NEKO</span>
         <span class="badge badge--conn" id="badge-conn" title="Kết nối tới neko">
           <i class="dot"></i><span id="conn-text">đang kiểm tra…</span>
         </span>
@@ -148,7 +148,7 @@
                 <span class="ladder__dot"></span>
                 <div class="ladder__body">
                   <b>Bậc mềm · trình duyệt</b>
-                  <small>dừng <code>&lt;video&gt;</code>, tắt track nhận, ngắt nhập liệu</small>
+                  <small id="soft-desc">phủ lớp pause tại Wayground; Neko dừng gửi frame ở bậc kế tiếp</small>
                   <em class="ladder__when" data-when>chạy ngay</em>
                 </div>
                 <span class="ladder__badge">0 ms</span>

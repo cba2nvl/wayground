@@ -16,6 +16,8 @@ const silentLogger = { debug: () => {}, info: () => {}, warn: () => {}, error: (
 
 let upstreamServer
 let gatewayServer
+let authGatewayServer
+let authProxy
 let proxy
 const upstreamConnections = []
 
@@ -50,10 +52,21 @@ before(async () => {
   gatewayServer = http.createServer((req, res) => res.writeHead(404).end())
   proxy = attachWebSocketProxies(gatewayServer, { config, logger: silentLogger })
   await new Promise((resolve) => gatewayServer.listen(0, '127.0.0.1', resolve))
+
+  // Gateway riêng có auth giả để kiểm tra iframe websocket dùng cùng cookie app.
+  authGatewayServer = http.createServer((req, res) => res.writeHead(404).end())
+  authProxy = attachWebSocketProxies(authGatewayServer, {
+    config,
+    logger: silentLogger,
+    authorize: (req) => ({ ok: req.headers.cookie === 'wg_session=valid' }),
+  })
+  await new Promise((resolve) => authGatewayServer.listen(0, '127.0.0.1', resolve))
 })
 
 after(async () => {
+  await authProxy?.close()
   await proxy?.close()
+  await new Promise((resolve) => authGatewayServer?.close(resolve))
   await new Promise((resolve) => gatewayServer?.close(resolve))
   await new Promise((resolve) => upstreamServer?.close(resolve))
 })
@@ -120,6 +133,38 @@ test('/neko-ui/ws: chuyển tiếp iframe neko sang /ws legacy bằng tài kho�
   assert.equal(upstream.query.username, 'neko')
   assert.equal(upstream.query.password, 'bi-mat-that', 'mật khẩu giả của trình duyệt bị thay bằng mật khẩu thật ở server')
 
+  ws.close()
+  await new Promise((resolve) => setTimeout(resolve, 150))
+})
+
+test('WebSocket proxy từ chối origin ngoài site', async () => {
+  const port = gatewayServer.address().port
+  const result = await new Promise((resolve) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/neko-ui/ws`, { headers: { origin: 'https://evil.example' } })
+    ws.on('unexpected-response', (_request, response) => resolve(response.statusCode))
+    ws.on('error', () => resolve('error'))
+    setTimeout(() => resolve('timeout'), 3000)
+  })
+  assert.equal(result, 403)
+})
+
+test('WebSocket giao diện Neko dùng cookie đăng nhập của Wayground', async () => {
+  const port = authGatewayServer.address().port
+  const rejected = await new Promise((resolve) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/neko-ui/ws`)
+    ws.on('unexpected-response', (_request, response) => resolve(response.statusCode))
+    ws.on('error', () => resolve('error'))
+    setTimeout(() => resolve('timeout'), 3000)
+  })
+  assert.equal(rejected, 403, 'không có cookie app thì không được lấy session neko')
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/neko-ui/ws`, { headers: { cookie: 'wg_session=valid' } })
+  const message = await new Promise((resolve, reject) => {
+    ws.on('message', (raw) => resolve(JSON.parse(raw.toString())))
+    ws.on('error', reject)
+    setTimeout(() => reject(new Error('iframe xác thực nhưng không kết nối được')), 5000)
+  })
+  assert.equal(message.event, 'system/init')
   ws.close()
   await new Promise((resolve) => setTimeout(resolve, 150))
 })

@@ -49,21 +49,29 @@ async function main() {
   const server = http.createServer()
   const startedAt = Date.now()
 
-  const proxy = attachWebSocketProxies(server, { config, logger, neko })
-
   const ctx = {
     config,
     logger,
     engine,
     neko,
     docker,
-    proxy,
+    proxy: null,
+    control: null,
     fakeNeko,
     startedAt,
     adminPath: '/',
   }
 
-  // control channel đọc `ctx.app` (được gán ngay bên dưới) tại thời điểm có kết nối
+  // Proxy gọi lại authorize sau khi app được dựng (trước server.listen).
+  // Điều này bảo vệ WebSocket của giao diện Neko nhúng bằng cùng cookie đăng nhập.
+  const proxy = attachWebSocketProxies(server, {
+    config,
+    logger,
+    authorize: (req) => ctx.app?.authorize?.(req) ?? { ok: false },
+  })
+  ctx.proxy = proxy
+
+  // control channel đọc `ctx.app` tại thời điểm có kết nối.
   const control = attachControlChannel(server, ctx)
   ctx.control = control
 

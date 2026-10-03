@@ -26,6 +26,16 @@ const HOP_BY_HOP = new Set([
   'content-encoding',
 ])
 
+function isSameOrigin(req) {
+  const origin = req.headers.origin
+  if (!origin) return true // client không phải trình duyệt (curl/test)
+  try {
+    return new URL(origin).host === req.headers.host
+  } catch {
+    return false
+  }
+}
+
 /**
  * Bỏ thuộc tính Domain của cookie để cookie gắn với origin của chúng ta
  * (vì trình duyệt chỉ nói chuyện với node.js, không nói chuyện với neko).
@@ -52,7 +62,11 @@ export function rewriteSetCookies(value) {
 export function createHttpProxy({ logger, targetBase, stripPrefix = true, rewriteQuery }) {
   return async function httpProxy(req, res) {
     const started = Date.now()
-    const targetPath = stripPrefix ? req.url.replace(/^\/[^/]+/, '') || '/' : req.url
+    // Express app.use('/prefix', middleware) đã rút prefix khỏi req.url;
+    // dùng originalUrl để stripPrefix không vô tình làm rơi segment đầu của
+    // các asset (ví dụ /neko-ui/js/app.js -> /js/app.js).
+    const sourceUrl = stripPrefix ? (req.originalUrl ?? req.url) : req.url
+    const targetPath = stripPrefix ? sourceUrl.replace(/^\/[^/]+/, '') || '/' : sourceUrl || '/'
     const target = new URL(`${targetBase}${targetPath.startsWith('/') ? '' : '/'}${targetPath}`)
     // vd: thay pwd giả bằng mật khẩu thật trước khi chuyển tiếp
     if (typeof rewriteQuery === 'function') rewriteQuery(target.searchParams, req)
@@ -126,7 +140,7 @@ export function createHttpProxy({ logger, targetBase, stripPrefix = true, rewrit
  * @param {{config:any, logger:any}} deps
  * @returns {{wss: WebSocketServer, stats: any, close: () => Promise<void>}}
  */
-export function attachWebSocketProxies(server, { config, logger }) {
+export function attachWebSocketProxies(server, { config, logger, authorize }) {
   const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false })
   const stats = {
     viewerConnections: 0,
@@ -249,6 +263,14 @@ export function attachWebSocketProxies(server, { config, logger }) {
   server.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
     const pathname = url.pathname.replace(/\/+$/, '') || '/'
+    const isProxyPath = ['/viewer-ws', '/neko-ui/ws', '/neko-ui/api/ws', '/novnc-ws'].includes(pathname)
+    const authResult = isProxyPath ? authorize?.(req) : null
+    if (isProxyPath && (!isSameOrigin(req) || (authorize && !authResult?.ok))) {
+      logger.warn('ws: từ chối kết nối proxy', { path: pathname, origin: req.headers.origin ?? null })
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n')
+      socket.destroy()
+      return
+    }
 
     // ---- 1) khung xem neko WebRTC của chúng ta (/viewer-ws?ticket=...)
     if (pathname === '/viewer-ws') {

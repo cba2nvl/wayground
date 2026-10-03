@@ -8,8 +8,11 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "start": "node src/index.js",
+    "start": "docker compose up --build",
+    "stop": "docker compose down",
+    "start:app": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "demo": "node scripts/demo.js",
     "test": "node --test test/*.test.js",
     "smoke": "node scripts/smoke.js",
     "lint": "eslint src public/js test scripts"

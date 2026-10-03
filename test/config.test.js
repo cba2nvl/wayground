@@ -117,13 +117,43 @@ test('biến môi trường thật thắng giá trị trong .env', () => {
   }
 })
 
-test('không có .env thì chạy bằng mặc định, envFileLoaded=false', () => {
+test('không có .env thì mặc định kết nối Neko thật trên localhost', () => {
   const box = sandbox()
   try {
     const cfg = readConfig(box.dir)
     assert.equal(cfg.envFileLoaded, false)
-    assert.equal(cfg.port, 8080)
+    assert.equal(cfg.port, 3000)
+    assert.equal(cfg.mode, 'live')
+    assert.equal(cfg.nekoUrl, 'http://127.0.0.1:8080')
+    assert.equal(cfg.resolvedViewer, 'embed')
+  } finally {
+    box.cleanup()
+  }
+})
+
+test('MODE=auto chỉ rơi về demo khi NEKO_URL được để trống', () => {
+  const box = sandbox()
+  try {
+    const cfg = readConfig(box.dir, { MODE: 'auto', NEKO_URL: '' })
     assert.equal(cfg.mode, 'demo')
+    assert.equal(cfg.resolvedViewer, 'demo')
+  } finally {
+    box.cleanup()
+  }
+})
+
+test('VIEWER=auto dùng giao diện gốc Neko ở live và canvas chỉ ở demo', () => {
+  const box = sandbox()
+  try {
+    const live = readConfig(box.dir, { MODE: 'live', NEKO_URL: 'http://neko:8080' })
+    assert.equal(live.requestedViewer, 'auto')
+    assert.equal(live.resolvedViewer, 'embed')
+
+    const custom = readConfig(box.dir, { MODE: 'live', NEKO_URL: 'http://neko:8080', VIEWER: 'webrtc' })
+    assert.equal(custom.resolvedViewer, 'webrtc', 'viewer WebRTC mini vẫn có thể bật tường minh')
+
+    const demo = readConfig(box.dir, { MODE: 'demo' })
+    assert.equal(demo.resolvedViewer, 'demo')
   } finally {
     box.cleanup()
   }

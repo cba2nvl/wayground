@@ -59,6 +59,22 @@ test('index.html nạp đúng css/js và có các phần tử chính', () => {
   assert.match(html, /id="screen-input"/)
 })
 
+test('Docker Compose dùng Neko thật và giao diện gốc là viewer mặc định', () => {
+  const compose = read('docker-compose.yml')
+  assert.match(compose, /image:\s*ghcr\.io\/m1k1o\/neko\/firefox:latest/)
+  assert.match(compose, /MODE:\s*live/)
+  assert.match(compose, /VIEWER:\s*\$\{VIEWER:-embed\}/)
+  assert.match(compose, /NEKO_LEGACY:\s*'true'/)
+  assert.match(compose, /NEKO_URL:\s*http:\/\/neko:8080/)
+})
+
+test('giao diện mặc định không hiện nhãn demo trước khi nạp cấu hình', () => {
+  const html = read('public/index.html')
+  assert.match(html, /data-mode="live" data-viewer="embed"/)
+  assert.match(html, /id="badge-mode"[^>]*>LIVE</)
+  assert.match(html, /id="badge-viewer"[^>]*>NEKO</)
+})
+
 test('login.html gửi đúng API đăng nhập', () => {
   const html = read('public/login.html')
   assert.match(html, /fetch\('\/api\/login'/)
