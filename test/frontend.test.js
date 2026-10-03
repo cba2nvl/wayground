@@ -68,6 +68,20 @@ test('Docker Compose dùng Neko thật và giao diện gốc là viewer mặc đ
   assert.match(compose, /NEKO_URL:\s*http:\/\/neko:8080/)
 })
 
+test('Render deploys the app as a self-contained Node demo, not a Compose stack', () => {
+  const render = read('render.yaml')
+  const packageJson = JSON.parse(read('package.json'))
+
+  assert.match(render, /runtime:\s*node/)
+  assert.match(render, /buildCommand:\s*npm ci --omit=dev/)
+  assert.match(render, /startCommand:\s*npm run start:app/)
+  assert.match(render, /healthCheckPath:\s*\/healthz/)
+  assert.match(render, /key:\s*MODE\s*\n\s*value:\s*demo/)
+  assert.match(render, /key:\s*VIEWER\s*\n\s*value:\s*demo/)
+  assert.equal(packageJson.scripts.start, 'node src/index.js')
+  assert.equal(packageJson.scripts['start:stack'], 'docker compose up --build')
+})
+
 test('giao diện mặc định không hiện nhãn demo trước khi nạp cấu hình', () => {
   const html = read('public/index.html')
   assert.match(html, /data-mode="live" data-viewer="embed"/)
