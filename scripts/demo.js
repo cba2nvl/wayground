@@ -2,7 +2,7 @@
 /**
  * Chạy app ở chế độ mô phỏng một cách tường minh.
  *
- * `npm start` khởi động stack Docker Compose với Neko thật; dùng `npm run demo`
+ * `npm run start:stack` khởi động Docker Compose với Neko thật; dùng `npm run demo`
  * khi chỉ muốn thử giao diện mà không có Docker/Neko.
  */
 process.env.MODE = 'demo'

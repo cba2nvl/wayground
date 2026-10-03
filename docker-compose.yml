@@ -1,10 +1,10 @@
 # =============================================================================
 #  Wayground Console + neko thật (Neko được Docker Compose tải/chạy tự động)
-#  Chạy:  npm start   hoặc   docker compose up --build
+#  Chạy:  npm run start:stack   hoặc   docker compose up --build
 #  Mở:    http://localhost:3000
 #
 #  VIEWER mặc định là embed: khung xem tải giao diện gốc của Neko qua proxy.
-#  DEMO chỉ bật tường minh bằng `npm run demo` hoặc MODE=demo khi chạy Node riêng.
+#  App chạy riêng không có Neko mặc định DEMO trên Render; đặt MODE=demo để bật tường minh ở nơi khác.
 # =============================================================================
 services:
   # ---------------------------------------------------------------------------

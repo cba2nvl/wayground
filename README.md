@@ -25,6 +25,7 @@ quyết định pause/resume, rồi gọi API quản trị của neko (và/hoặ
 - [Tính năng](#tính-năng)
 - [Chạy nhanh với Neko thật](#chạy-nhanh-với-neko-thật)
 - [Chạy DEMO (tùy chọn)](#chạy-demo-tùy-chọn)
+- [Triển khai Render](#triển-khai-render)
 - [Tùy chỉnh Neko / dùng neko đã có](#tùy-chỉnh-neko--dùng-neko-đã-có)
 - [Cơ chế pause hoạt động thế nào](#cơ-chế-pause-hoạt-động-thế-nào)
 - [Cấu hình (biến môi trường)](#cấu-hình-biến-môi-trường)
@@ -52,7 +53,7 @@ quyết định pause/resume, rồi gọi API quản trị của neko (và/hoặ
   sự kiện chuột "đè" mất.
 - **Giao diện Neko thật mặc định**: Compose tự tải/chạy image chính thức `ghcr.io/m1k1o/neko/firefox`;
   khung xem `embed` hiển thị giao diện Neko nguyên bản (chat, clipboard, file transfer), không phải canvas demo.
-  `webrtc` (viewer mini) và `novnc` vẫn có thể chọn; `demo` chỉ bật tường minh để thử khi không có Docker.
+  `webrtc` (viewer mini) và `novnc` vẫn có thể chọn; `demo` dùng để thử khi không có Neko thật, đồng thời là cấu hình mặc định an toàn cho Render.
 - **Bảng điều khiển** (tiếng Việt) hiển thị: bậc pause hiện tại, lý do pause, lịch sử, số liệu
   (thời gian theo bậc, số lần pause), nhật ký, các lời gọi API đã gửi tới neko, và chỉnh tham số
   pause ngay trên giao diện (áp dụng tức thì, không cần khởi động lại).
@@ -68,7 +69,7 @@ Cần Docker Desktop/Engine kèm Docker Compose. Không cần cài Neko riêng, 
 Compose tự tải image Neko chính thức, build Wayground Console và chạy cả hai service.
 
 ```bash
-npm start
+npm run start:stack
 # đợi tải image lần đầu, sau đó mở http://localhost:3000
 # dừng stack bằng Ctrl+C hoặc: npm run stop
 ```
@@ -96,8 +97,9 @@ trong `.env` nếu muốn dùng viewer WebRTC tối giản của Wayground thay 
 
 ## Chạy DEMO (tùy chọn)
 
-DEMO chỉ dùng để kiểm thử giao diện/cơ chế pause khi không có Docker. Đây là neko giả lập và canvas,
-không phải máy ảo hay giao diện Neko thật:
+DEMO dùng để kiểm thử giao diện/cơ chế pause khi không có Neko thật. Đây là neko giả lập và canvas,
+không phải máy ảo hay giao diện Neko thật. Render mặc định dùng chế độ này vì mỗi web service chạy riêng,
+không tự có một Neko tại `127.0.0.1:8080`:
 
 ```bash
 npm install
@@ -116,11 +118,34 @@ PAUSE_DOCKER_AFTER_MS=5000
 
 ---
 
+## Triển khai Render
+
+Repository có sẵn `render.yaml` cho Render Blueprint. Đây là Node web service độc lập (không chạy Docker Compose),
+được cấu hình `MODE=demo` + `VIEWER=demo` và health check `/healthz`; build dùng `npm ci --omit=dev`,
+start bằng `npm run start:app`.
+
+Nếu service Render hiện tại vẫn báo `upstream_unreachable` với `target: http://127.0.0.1:8080`, nguyên nhân là app
+đang ở `MODE=live` nhưng không có Neko trong cùng container. Để sửa service đã tạo thủ công trên Render, vào **Settings**
+đặt:
+
+- **Build Command:** `npm ci --omit=dev`
+- **Start Command:** `npm run start:app`
+- **Environment:** `MODE=demo`, `VIEWER=demo`
+
+Sau đó lưu và deploy lại. `npm start` cũng chạy riêng Node app; lệnh chạy cả stack Neko local là
+`npm run start:stack` (hoặc `docker compose up --build`).
+
+Muốn nối tới Neko thật, phải triển khai Neko ở một máy chủ/địa chỉ riêng mà service và trình duyệt có thể truy cập,
+rồi đặt `MODE=live`, `VIEWER=embed` và `NEKO_URL=<địa chỉ HTTP(S) của Neko>`. Không đặt `NEKO_URL` thành `localhost`
+trên Render trừ khi Neko thực sự chạy cùng container.
+
+---
+
 ## Tùy chỉnh Neko / dùng neko đã có
 
 ### Neko đóng gói sẵn (mặc định)
 
-`npm start` tương đương `docker compose up --build`: Compose tải image Neko và tự nối app tới
+`npm run start:stack` tương đương `docker compose up --build`: Compose tải image Neko và tự nối app tới
 `http://neko:8080` bên trong mạng Docker. Không cần cài/chạy Neko riêng.
 
 | Service | Vai trò | Cổng |

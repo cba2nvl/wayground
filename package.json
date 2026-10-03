@@ -8,9 +8,10 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "start": "docker compose up --build",
-    "stop": "docker compose down",
+    "start": "node src/index.js",
     "start:app": "node src/index.js",
+    "start:stack": "docker compose up --build",
+    "stop": "docker compose down",
     "dev": "node --watch src/index.js",
     "demo": "node scripts/demo.js",
     "test": "node --test test/*.test.js",

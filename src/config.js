@@ -1,8 +1,8 @@
 /**
  * config.js - Đọc & chuẩn hoá toàn bộ cấu hình từ biến môi trường (.env).
  *
- * `npm start` chạy Docker Compose với Neko thật; chạy riêng Node.js cũng mặc định
- * kết nối tới Neko local. Chế độ DEMO chỉ được bật bằng MODE=demo (hoặc auto + URL trống).
+ * Docker Compose kết nối tới Neko thật; chạy Node.js riêng mặc định kết nối Neko local.
+ * Trên Render, nếu không khai báo NEKO_URL/MODE thì tự chạy DEMO vì localhost không có Neko.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -91,8 +91,14 @@ export const CONTAINER_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const nekoUrl = trimTrailingSlash(str(process.env.NEKO_URL, 'http://127.0.0.1:8080'))
-const requestedMode = str(process.env.MODE, 'live').toLowerCase()
+// Render chạy web service trong một container riêng, không có Neko tại localhost.
+// Chỉ dùng URL local làm mặc định bên ngoài Render; trên Render, NEKO_URL không
+// khai báo sẽ để trống và chuyển sang DEMO. Nếu có NEKO_URL thì vẫn mặc định LIVE.
+const isRender = String(process.env.RENDER ?? '').trim().toLowerCase() === 'true'
+const defaultNekoUrl = isRender ? '' : 'http://127.0.0.1:8080'
+const nekoUrl = trimTrailingSlash(str(process.env.NEKO_URL, defaultNekoUrl))
+const defaultMode = isRender && !nekoUrl ? 'demo' : 'live'
+const requestedMode = str(process.env.MODE, defaultMode).toLowerCase()
 const mode = requestedMode === 'auto' || requestedMode === '' ? (nekoUrl ? 'live' : 'demo') : requestedMode
 
 const requestedViewer = str(process.env.VIEWER, 'auto').toLowerCase()

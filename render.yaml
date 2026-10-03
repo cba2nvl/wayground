@@ -1,0 +1,20 @@
+# Render web service for the Wayground dashboard.
+# The demo mode is self-contained; deploy a separately reachable Neko server
+# and set MODE=live + NEKO_URL to use a real virtual desktop.
+services:
+  - type: web
+    name: wayground
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run start:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MODE
+        value: demo
+      - key: VIEWER
+        value: demo
+      - key: STRATEGY_DOCKER
+        value: 'false'

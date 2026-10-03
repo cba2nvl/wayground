@@ -1,5 +1,6 @@
-# Ảnh chạy Wayground Console (Node.js). Chiến lược "docker pause" cần docker CLI
-# nên ảnh cài thêm gói docker-cli (nhẹ, chỉ là client).
+# Ảnh chạy Wayground Console (Node.js). Mặc định dùng DEMO để chạy độc lập trên PaaS;
+# Docker Compose sẽ ghi đè MODE/VIEWER để kết nối Neko thật. Chiến lược "docker pause"
+# cần docker CLI nên ảnh cài thêm gói docker-cli (nhẹ, chỉ là client).
 FROM node:22-alpine
 
 # docker CLI để đóng băng container neko (STRATEGY_DOCKER=true)
@@ -18,7 +19,9 @@ COPY .env.example ./.env.example
 
 ENV NODE_ENV=production \
     PORT=8080 \
-    HOST=0.0.0.0
+    HOST=0.0.0.0 \
+    MODE=demo \
+    VIEWER=demo
 
 EXPOSE 8080
 

@@ -20,6 +20,7 @@ const REPO = fileURLToPath(new URL('..', import.meta.url))
 const SCRUB = [
   'PORT',
   'HOST',
+  'RENDER',
   'MODE',
   'VIEWER',
   'APP_PASSWORD',
@@ -126,6 +127,30 @@ test('không có .env thì mặc định kết nối Neko thật trên localhost
     assert.equal(cfg.mode, 'live')
     assert.equal(cfg.nekoUrl, 'http://127.0.0.1:8080')
     assert.equal(cfg.resolvedViewer, 'embed')
+  } finally {
+    box.cleanup()
+  }
+})
+
+test('Render mặc định chạy demo nếu không khai báo Neko riêng', () => {
+  const box = sandbox()
+  try {
+    const cfg = readConfig(box.dir, { RENDER: 'true' })
+    assert.equal(cfg.mode, 'demo')
+    assert.equal(cfg.resolvedViewer, 'demo')
+    assert.equal(cfg.nekoUrl, '')
+  } finally {
+    box.cleanup()
+  }
+})
+
+test('Render dùng chế độ live khi NEKO_URL trỏ tới Neko bên ngoài', () => {
+  const box = sandbox()
+  try {
+    const cfg = readConfig(box.dir, { RENDER: 'true', NEKO_URL: 'https://neko.example.com/' })
+    assert.equal(cfg.mode, 'live')
+    assert.equal(cfg.resolvedViewer, 'embed')
+    assert.equal(cfg.nekoUrl, 'https://neko.example.com')
   } finally {
     box.cleanup()
   }
