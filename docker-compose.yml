@@ -1,0 +1,106 @@
+# =============================================================================
+#  Wayground Console + neko
+#  Chạy:  docker compose up -d   ->  mở http://localhost:3000
+#
+#  Lần đầu nên chạy ở chế độ DEMO (không cần neko) để xem cơ chế:
+#     docker compose up console      # MODE mặc định là auto -> demo
+# =============================================================================
+services:
+  # ---------------------------------------------------------------------------
+  # neko: trình duyệt ảo (m1k1o/neko). Đây là "máy ảo" mà ta sẽ tạm dừng.
+  # ---------------------------------------------------------------------------
+  neko:
+    image: ghcr.io/m1k1o/neko/firefox:latest
+    container_name: wayground-neko
+    restart: unless-stopped
+    shm_size: '2gb'
+    ports:
+      - '8080:8080' # giao diện neko (để debug trực tiếp, có thể bỏ)
+      - '52000-52100:52000-52100/udp' # WebRTC (bắt buộc cho khung xem)
+    environment:
+      # --- WebRTC ---
+      NEKO_WEBRTC_EPR: 52000-52100
+      # Đổi thành IP mà trình duyệt của bạn nhìn thấy (LAN IP hoặc public IP).
+      # Nếu neko và wayground-console chạy cùng máy và bạn xem qua localhost,
+      # có thể để trống.
+      NEKO_WEBRTC_NAT1TO1: ${NEKO_PUBLIC_IP:-}
+      NEKO_WEBRTC_ICETRICKLE: 'true'
+
+      # --- màn hình ---
+      NEKO_DESKTOP_SCREEN: 1920x1080@30
+
+      # --- tài khoản ---
+      NEKO_MEMBER_MULTIUSER_USER_PASSWORD: neko
+      NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD: admin
+      # Session dùng cho khung xem nên là người dùng thường (không phải admin),
+      # vì neko chỉ pause session không phải admin (private_mode && !IsAdmin).
+      NEKO_MEMBER_MULTIUSER_USER_PROFILE: |
+        {"name":"viewer","can_watch":true,"can_host":true,"can_connect":true,"can_login":true}
+
+      # --- cho phép Wayground Console điều khiển neko bằng API token ---
+      # viper: `session.api_token` -> env NEKO_SESSION_API_TOKEN
+      # (KHÔNG phải NEKO_SESSION_APITOKEN — tên đó của bản v2, neko v3 bỏ qua)
+      NEKO_SESSION_API_TOKEN: wayground-api-token
+
+      # Cho phép người dùng thường tự động thành host khi gửi chuột/bàn phím
+      # (không cần bấm "request control" trong giao diện neko).
+      NEKO_SESSION_IMPLICIT_HOSTING: 'true'
+      # Bật cookie để các API HTTP của neko (whoami/clipboard/file) hoạt động
+      # xuyên qua proxy. Đặt NEKO_SESSION_COOKIE_SECURE=true khi chạy HTTPS.
+      NEKO_SESSION_COOKIE_ENABLED: 'true'
+      NEKO_SESSION_COOKIE_SECURE: 'false'
+
+      # Bật legacy -> neko phục vụ thêm `/ws` (giao diện kèm theo của neko dùng
+      # đường dẫn này, và VIEWER=embed cũng chuyển tiếp qua đó). Các biến kiểu v2
+      # bên trên cũng tự bật legacy, nhưng khai báo tường minh cho chắc.
+      NEKO_LEGACY: 'true'
+
+  # ---------------------------------------------------------------------------
+  # wayground-console: node.js điều khiển pause/resume + giao diện web
+  # ---------------------------------------------------------------------------
+  console:
+    build: .
+    container_name: wayground-console
+    restart: unless-stopped
+    ports:
+      - '3000:8080'
+    environment:
+      PORT: '8080'
+      HOST: 0.0.0.0
+      LOG_LEVEL: info
+      # Đặt mật khẩu nếu trang này mở ra internet!
+      APP_PASSWORD: ${APP_PASSWORD:-}
+
+      MODE: live
+      VIEWER: ${VIEWER:-webrtc} # webrtc | embed | novnc
+      NEKO_URL: http://neko:8080
+      NEKO_API_TOKEN: wayground-api-token
+
+      # --- khung xem WebRTC dùng tài khoản người dùng thường ---
+      NEKO_USERNAME: viewer
+      NEKO_PASSWORD: neko
+      # Mật khẩu admin (dùng khi không cấu hình NEKO_API_TOKEN)
+      NEKO_ADMIN_USERNAME: admin
+      NEKO_ADMIN_PASSWORD: admin
+
+      # --- cơ chế pause ---
+      PAUSE_LEAVE_DEBOUNCE_MS: '600'
+      PAUSE_HARD_AFTER_MS: '3000'
+      STRATEGY_CLIENT: 'true'
+      STRATEGY_SERVER: 'true'
+
+      # --- bậc sâu: đóng băng container neko bằng docker ---
+      # Cần mount /var/run/docker.sock (xem volumes bên dưới) và bật STRATEGY_DOCKER.
+      STRATEGY_DOCKER: ${STRATEGY_DOCKER:-false}
+      NEKO_CONTAINER: wayground-neko
+      PAUSE_DOCKER_AFTER_MS: '60000'
+      PAUSE_MAX_FREEZE_MS: '120000'
+      PAUSE_LEASE_MS: '600000'
+      PAUSE_MAX_MS: '1800000'
+    volumes:
+      # Cho phép chiến lược "docker pause" điều khiển container neko.
+      # ⚠️ Mount docker socket = cấp quyền tương đương root cho container này.
+      # Bỏ dòng dưới nếu bạn không dùng STRATEGY_DOCKER.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - neko
